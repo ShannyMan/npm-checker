@@ -29,6 +29,33 @@ jobs:
         npm install 2>&1 | tee npm-install.log
         cat npm-install.log | ./check-vulnerabilities.sh
 
+    - name: Run Vulnerability Checker
+      run: |
+        chmod +x ./shai-hulud-detector.sh
+        echo "🔍 Running vulnerability scan with timeout (excluding node_modules for CI performance)..."
+        # Create temporary directory without node_modules for faster scanning
+        mkdir -p /tmp/scan-dir
+        rsync -av --exclude='node_modules' --exclude='.git' --exclude='build' --exclude='dist' ./ /tmp/scan-dir/
+        if output=$(timeout 300 ./shai-hulud-detector.sh /tmp/scan-dir 2>&1); then
+          echo "Vulnerability scan completed successfully:"
+          echo "$output"
+          if echo "$output" | grep -q "HIGH RISK: Malicious workflow files detected"; then
+            echo "❌ Security vulnerability detected! Aborting workflow."
+            exit 1
+          else
+            echo "✅ No high-risk vulnerabilities detected."
+          fi
+        else
+          exit_code=$?
+          if [ $exit_code -eq 124 ]; then
+            echo "⚠️ Vulnerability scan timed out after 5 minutes. Proceeding with caution."
+            echo "Consider running the scan manually: ./shai-hulud-detector.sh ./"
+          else
+            echo "❌ Vulnerability scan failed with exit code $exit_code"
+            exit $exit_code
+          fi
+        fi
+
     - name: Build application
       run: npm run build
 
