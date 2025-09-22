@@ -24,8 +24,10 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
-    - name: Install dependencies
-      run: npm install
+    - name: Install dependencies and check vulnerabilities
+      run: |
+        npm install 2>&1 | tee npm-install.log
+        cat npm-install.log | ./check-vulnerabilities.sh
 
     - name: Build application
       run: npm run build
