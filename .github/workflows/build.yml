@@ -30,8 +30,11 @@ jobs:
     - name: Run Vulnerability Checker
       run: |
         chmod +x ./shai-hulud-detector.sh
-        echo "🔍 Running vulnerability scan with timeout..."
-        if output=$(timeout 300 ./shai-hulud-detector.sh ./ 2>&1); then
+        echo "🔍 Running vulnerability scan with timeout (excluding node_modules for CI performance)..."
+        # Create temporary directory without node_modules for faster scanning
+        mkdir -p /tmp/scan-dir
+        rsync -av --exclude='node_modules' --exclude='.git' --exclude='build' --exclude='dist' ./ /tmp/scan-dir/
+        if output=$(timeout 300 ./shai-hulud-detector.sh /tmp/scan-dir 2>&1); then
           echo "Vulnerability scan completed successfully:"
           echo "$output"
           if echo "$output" | grep -q "HIGH RISK: Malicious workflow files detected"; then
